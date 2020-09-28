@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0">
+	<title>Gold Rush</title>
+
+	<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+	<link rel="stylesheet" type="text/css" href="/public-files/styles.css">
+
+	<script src="/socket.io/socket.io.js"></script>
+	<script src="/proxserve.js"></script>
+	<script src="/oh.js"></script>
+
+	<script src="/public-files/scripts.js"></script>
+<body>
+	<div id="loginBox">
+		<input type="text" placeholder="Choose a name">
+		<button>Connect</button>
+	</div>
+
+	<main id="game">
+		<button class="new-game">Start new game</button>
+		<button class="reset-game">Reset game</button>
+		<div class="players-info"></div>
+		<div class="matrix"></div>
+		<div class="console"></div>
+	</main>
+</body>
+</html>

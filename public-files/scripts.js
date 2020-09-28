@@ -1,0 +1,221 @@
+"use strict";
+
+var TILES = {
+	coin: 'coin',
+	empty: 'empty'
+};
+
+function clearElementContent(elm) {
+	while(elm.firstChild) elm.removeChild(elm.firstChild);
+}
+
+window.addEventListener('DOMContentLoaded', (event) => {
+	let loginBox = document.querySelector('#loginBox');
+	let mainElm = document.querySelector('#game');
+
+	loginBox.querySelector('button').addEventListener('click', (event) => {
+		let name = loginBox.querySelector('input').value;
+		let goldRushInstance = new OH('gold_rush', {name: name}, (obj) => {
+			loginBox.style.display = 'none';
+			mainElm.style.display = 'block';
+
+			new goldRush(obj, goldRushInstance.id, {
+				main: mainElm,
+				matrix: mainElm.querySelector('div.matrix'),
+				players: mainElm.querySelector('div.players-info'),
+				console: mainElm.querySelector('div.console')
+			});
+		});
+	});
+
+	mainElm.querySelector(':scope > button.new-game').addEventListener('click', (event) => {
+		fetch('/start-new-game');
+	});
+	mainElm.querySelector(':scope > button.reset-game').addEventListener('click', (event) => {
+		fetch('/reset-game');
+	});
+});
+
+class goldRush {
+	constructor(oh, myID, elements) {
+		this.oh = oh;
+		this.myID = myID;
+		this.me = oh.players[myID];
+		this.elements = elements;
+
+		paintMap(this.oh.map, this.elements.matrix, this.myID);
+		this.printPlayers();
+		this.bindEvents();
+	}
+
+	bindEvents() {
+		this.oh.map.on('change', changes => {
+			let isNewMap = false;
+			for(let change of changes) {
+				if(Array.isArray(change.value)) {
+					isNewMap = true;
+					break;
+				}
+			}
+			
+			if(isNewMap) paintMap(this.oh.map, this.elements.matrix, this.myID);
+			else updateMap(this.oh.map, this.elements.matrix, this.myID, changes);
+		});
+		this.oh.log.on('change', changes => { this.updateLog(changes); });
+		this.oh.players.on('change', changes => { this.printPlayers(); });
+		this.me.position.on('update', change => { this.updateMyPosition(change); });
+
+		document.addEventListener('keyup', event => {
+			if(event.code === 'ArrowUp') this.movePlayer('up');
+			else if(event.code === 'ArrowDown') this.movePlayer('down');
+			else if(event.code === 'ArrowLeft') this.movePlayer('left');
+			else if(event.code === 'ArrowRight') this.movePlayer('right');
+		});
+	}
+
+	printPlayers() {
+		clearElementContent(this.elements.players);
+		let playerKeys = Object.keys(this.oh.players);
+		for(let key of playerKeys) {
+			let player = this.oh.players[key];
+			let pre = document.createElement('pre');
+			pre.textContent = `Player: ${player.name}\nScore: ${player.score}\nPosition (x,y): [${player.position.x}, ${player.position.y}]`;
+			this.elements.players.append(pre);
+		}
+	}
+
+	updateLog(changes) {
+		for(let change of changes) {
+			let index = Proxserve.splitPath(change.path);
+			if(change.type === 'create') {
+				this.addLogEntry(index, change.value);
+			} else if(change.type === 'delete') {
+				this.removeLogEntry(index);
+			} else {
+				console.warn('Unexpected log message', change);
+			}
+		}
+	}
+	addLogEntry(index, msg) {
+		let wasScrolledToBottom = (this.elements.console.offsetHeight + this.elements.console.scrollTop >= this.elements.console.scrollHeight -5);
+		let span = document.createElement('span');
+		span.classList.add('log-'+index);
+		span.textContent = msg;
+		span.appendChild(document.createElement('br'));
+		this.elements.console.appendChild(span);
+		//keep scrolling the console to the bottom if it was at the bottom before
+		if(wasScrolledToBottom) {
+			setTimeout(() => { this.elements.console.scrollTo(0, this.elements.console.scrollHeight - this.elements.console.offsetHeight); }, 1);
+		}
+	}
+	removeLogEntry(index) {
+		this.elements.console.removeChild( this.elements.console.querySelector('span.log-'+index) );
+	}
+
+	movePlayer(direction) {
+		//player out of bounds means player is not currently playing
+		if(this.me.position.y < 0 || this.me.position.x < 0) {
+			return;
+		}
+
+		let rows = this.oh.map.length;
+		let cols = this.oh.map[0].length;
+		let newX = this.me.position.x;
+		let newY = this.me.position.y;
+
+		if(direction === 'up' && this.me.position.y > 0) newY -= 1;
+		else if(direction === 'down' && this.me.position.y < rows - 1) newY += 1;
+		else if(direction === 'left' && this.me.position.x > 0) newX -= 1;
+		else if(direction === 'right' && this.me.position.x < cols - 1) newX += 1;
+
+		if(this.oh.map[newY][newX] in TILES) { //meaning we are not going to eat another player
+			this.me.position.y = newY;
+			this.me.position.x = newX;
+		}
+	}
+	
+	updateMyPosition(change) {
+		//player out of bounds means player is not currently playing
+		if(this.me.position.y < 0 || this.me.position.x < 0) {
+			return;
+		}
+
+		let position = { x: this.me.position.x, y: this.me.position.y }; //new position
+		if(position.x >= 0 && position.y >= 0) { //player is in boundaries
+			try {
+				if(this.oh.map[ position.y ][ position.x ] === TILES.coin) {
+					this.me.score += 1;
+				}
+				this.oh.map[ position.y ][ position.x ] = this.myID;
+			}
+			catch(err) {
+				console.warn(`failed updating new position. probably a race condition between old and new map`);
+				console.error(err);
+			}
+		}
+
+		if(change.path === '.x') position.x = change.oldValue; //now it's old position
+		else if(change.path === '.y') position.y = change.oldValue; //now it's old position
+		if(position.x >= 0 && position.y >= 0) { //player is in boundaries
+			try {
+				this.oh.map[ position.y ][ position.x ] = TILES.empty;
+			}
+			catch(err) {
+				console.warn(`failed updating old position. probably a race condition between old and new map`);
+				console.error(err);
+			}
+		}
+	}
+}
+
+//UI functions
+function paintMap(map, matrixElm, myID) {
+	clearElementContent(matrixElm);
+	
+	let rows = map.length;
+	let cols = map[0].length;
+	matrixElm.style.width = `${cols * 40}px`;
+	matrixElm.style.height = `${rows * 40}px`;
+
+	for(let y=0; y < rows; y++) {
+		for(let x=0; x < cols; x++) {
+			let span = document.createElement('span');
+			span.classList.add(`y${y}`, `x${x}`);
+			matrixElm.append(span);
+
+			paintTile(map, matrixElm, y, x, myID);
+		}
+	}
+}
+function updateMap(map, matrixElm, myID, changes) {
+	for(let change of changes) {
+		let [y, x] = Proxserve.splitPath(change.path);
+		y = parseInt(y, 10);
+		x = parseInt(x, 10);
+		paintTile(map, matrixElm, y, x, myID);
+	}
+}
+function paintTile(map, matrixElm, y, x, myID) {
+	let span = matrixElm.querySelector(`span.y${y}.x${x}`);
+	if(span === null) {
+		//matrix map wasn't created yet. this happens when a
+		//new games begins and then both, map and player position, gets updated (race condition)
+		return;
+	}
+	clearElementContent(span);
+
+	if(map[y][x] === TILES.coin) {
+		let i = document.createElement('i');
+		i.classList.add('coin');
+		span.append(i);
+	}
+	else if(!(map[y][x] in TILES)) { //is a player
+		let i = document.createElement('i');
+		i.classList.add('player');
+
+		if(map[y][x] === myID) { //it's the players character
+			i.classList.add('me');
+		}
+		span.append(i);
+	}
+}

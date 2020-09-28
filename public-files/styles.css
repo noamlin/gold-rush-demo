@@ -1,0 +1,97 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: Arial, Helvetica, sans-serif;
+}
+html,
+body {
+  width: 100%;
+}
+#game {
+  display: none;
+}
+#game div.players-info {
+  height: 10vh;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+}
+#game div.players-info > pre {
+  display: inline-block;
+  padding: 0 20px;
+}
+#game div.matrix {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  height: 80vh;
+  background-image: url(unsplash_tim-hufner.jpg);
+  background-size: cover;
+}
+#game div.matrix span {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 40px;
+  height: 40px;
+  border-style: solid;
+  border-color: rgba(255, 255, 255, 0.13);
+  border-width: 0 1px 1px 0;
+}
+#game div.matrix span i {
+  display: block;
+  background-size: cover;
+}
+#game div.matrix span i.coin {
+  width: 80%;
+  height: 80%;
+  background-image: url(dollar_40x40.png);
+  animation-name: coin_spin;
+  animation-duration: 3s;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+}
+@keyframes coin_spin {
+  0%,
+  15% {
+    transform: rotate3d(0, 0, 0, 0deg);
+  }
+  33% {
+    transform: rotate3d(0, 1, -0.2, 90deg);
+  }
+  51%,
+  65% {
+    transform: rotate3d(0, 1, 0, 180deg);
+  }
+  83% {
+    transform: rotate3d(0, 1, 0.2, 90deg);
+  }
+  100% {
+    transform: rotate3d(0, 0, 0, 0deg);
+  }
+}
+#game div.matrix span i.player {
+  width: 86%;
+  height: 86%;
+  background-image: url(player-blue_29x40.png);
+}
+#game div.matrix span i.player.me {
+  background-image: url(player-green_29x40.png);
+}
+#game div.console {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 10vh;
+  border-top: 1px solid black;
+  background-color: black;
+  box-shadow: 0px 0px 70px 10px #003300 inset;
+  padding: 9px;
+  color: #bebe5a;
+  text-shadow: 1px 1px 0 black;
+  overflow-y: scroll;
+  font-family: monospace;
+  font-size: 12px;
+}
