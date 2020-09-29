@@ -7,9 +7,10 @@ const express = require('express');
 const app = express();
 const OH = require('object-hub');
 
+const PORT = process.env.PORT || 1337;
 const server = http.createServer(app);
-server.listen(1337, () => {
-	console.log(`server is listening on port 1337`);
+server.listen(PORT, () => {
+	console.log(`server is listening on port ${PORT}`);
 });
 
 app.get('/', (req, res) => { res.sendFile(`${baseDir}/index.html`); });
