@@ -15,7 +15,7 @@ window.addEventListener('DOMContentLoaded', (event) => {
 
 	loginBox.querySelector('button').addEventListener('click', (event) => {
 		let name = loginBox.querySelector('input').value;
-		let goldRushInstance = new OH('gold_rush', {name: name}, (obj) => {
+		let goldRushInstance = new OH('gold_rush', (obj) => {
 			loginBox.style.display = 'none';
 			mainElm.style.display = 'block';
 
@@ -25,7 +25,7 @@ window.addEventListener('DOMContentLoaded', (event) => {
 				players: mainElm.querySelector('div.players-info'),
 				console: mainElm.querySelector('div.console')
 			});
-		});
+		}, {name: name}, { emitReference: false });
 	});
 
 	mainElm.querySelector(':scope > button.new-game').addEventListener('click', (event) => {
@@ -52,7 +52,7 @@ class goldRush {
 		this.oh.map.on('change', changes => {
 			let isNewMap = false;
 			for(let change of changes) {
-				if(Array.isArray(change.value)) {
+				if(change.path === '') {
 					isNewMap = true;
 					break;
 				}
@@ -66,10 +66,10 @@ class goldRush {
 		this.me.position.on('update', change => { this.updateMyPosition(change); });
 
 		document.addEventListener('keyup', event => {
-			if(event.code === 'ArrowUp') this.movePlayer('up');
-			else if(event.code === 'ArrowDown') this.movePlayer('down');
-			else if(event.code === 'ArrowLeft') this.movePlayer('left');
-			else if(event.code === 'ArrowRight') this.movePlayer('right');
+			if(event.key === 'ArrowUp') this.movePlayer('up');
+			else if(event.key === 'ArrowDown') this.movePlayer('down');
+			else if(event.key === 'ArrowLeft') this.movePlayer('left');
+			else if(event.key === 'ArrowRight') this.movePlayer('right');
 		});
 	}
 
@@ -109,7 +109,10 @@ class goldRush {
 		}
 	}
 	removeLogEntry(index) {
-		this.elements.console.removeChild( this.elements.console.querySelector('span.log-'+index) );
+		let span = this.elements.console.querySelector('span.log-'+index);
+		if(span) { //server might be trying to delete logs that existed before we logged in
+			this.elements.console.removeChild(  );
+		}
 	}
 
 	movePlayer(direction) {
@@ -129,8 +132,9 @@ class goldRush {
 		else if(direction === 'right' && this.me.position.x < cols - 1) newX += 1;
 
 		if(this.oh.map[newY][newX] in TILES) { //meaning we are not going to eat another player
-			this.me.position.y = newY;
-			this.me.position.x = newX;
+			//this.me.position.y = newY;
+			//this.me.position.x = newX;
+			this.me.position = { y: newY, x: newX };
 		}
 	}
 	
@@ -140,13 +144,14 @@ class goldRush {
 			return;
 		}
 
-		let position = { x: this.me.position.x, y: this.me.position.y }; //new position
-		if(position.x >= 0 && position.y >= 0) { //player is in boundaries
+		let newY = this.me.position.y;
+		let newX = this.me.position.x;
+		if(newX >= 0 && newY >= 0) { //player is in boundaries
 			try {
-				if(this.oh.map[ position.y ][ position.x ] === TILES.coin) {
+				if(this.oh.map[ newY ][ newX ] === TILES.coin) {
 					this.me.score += 1;
 				}
-				this.oh.map[ position.y ][ position.x ] = this.myID;
+				this.oh.map[ newY ][ newX ] = this.myID;
 			}
 			catch(err) {
 				console.warn(`failed updating new position. probably a race condition between old and new map`);
@@ -154,11 +159,11 @@ class goldRush {
 			}
 		}
 
-		if(change.path === '.x') position.x = change.oldValue; //now it's old position
-		else if(change.path === '.y') position.y = change.oldValue; //now it's old position
-		if(position.x >= 0 && position.y >= 0) { //player is in boundaries
+		let oldY = change.oldValue.y;
+		let oldX = change.oldValue.x;
+		if(oldX >= 0 && oldY >= 0) { //player is in boundaries
 			try {
-				this.oh.map[ position.y ][ position.x ] = TILES.empty;
+				this.oh.map[ oldY ][ oldX ] = TILES.empty;
 			}
 			catch(err) {
 				console.warn(`failed updating old position. probably a race condition between old and new map`);

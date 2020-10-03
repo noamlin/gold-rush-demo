@@ -115,23 +115,19 @@ function newGame(reset=false) {
 
 		if(map[0][0] in TILES) {
 			map[0][0] = playerID;
-			player.position.x = 0;
-			player.position.y = 0;
+			player.position = { y: 0, x: 0 };
 		}
 		else if(map[rows - 1][cols - 1] in TILES) {
 			map[rows - 1][cols - 1] = playerID;
-			player.position.x = cols - 1;
-			player.position.y = rows - 1;
+			player.position = { y: rows - 1, x: cols - 1 };
 		}
 		else if(map[0][cols - 1] in TILES) {
 			map[0][cols - 1] = playerID;
-			player.position.x = cols - 1;
-			player.position.y = 0;
+			player.position = { y: 0, x: cols - 1 };
 		}
 		else if(map[rows - 1][0] in TILES) {
 			map[rows - 1][0] = playerID;
-			player.position.x = 0;
-			player.position.y = rows - 1;
+			player.position = { y: rows - 1, x: 0 };
 		}
 	}
 
