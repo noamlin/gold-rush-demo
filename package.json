@@ -12,7 +12,7 @@
 		"debug": "^4.1.1",
 		"express": "^4.17.1",
 		"lodash": "^4.17.15",
-		"object-hub": "^1.0.1",
+		"object-hub": "^1.0.3",
 		"proxserve": "^1.4.4",
 		"socket.io": "^2.3.0"
 	},

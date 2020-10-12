@@ -54,12 +54,12 @@ goldRushInstance.on('connection', function(client, clientData, init) {
 		return; //don't connect more than 8 players
 	}
 
+	goldRushInstance.setPermissions(`players.${client.id}`, 0, client.id);
 	goldRush.players[client.id] = {
 		name: client.name,
 		score: 0,
 		position: { x: -1, y: -1 }
 	};
-	goldRushInstance.setPermissions(`players.${client.id}`, 0, client.id);
 
 	init();
 });
@@ -85,8 +85,10 @@ goldRushInstance.on('disconnection', function(client, reason) {
 });
 
 function newGame(reset=false) {
-	let rows = 8 + Math.floor(Math.random() * 8);
-	let cols = 8 + Math.floor(Math.random() * 8);
+	let minRows = 10, maxRows = 16,
+		minCols = 8, maxCols = 14;
+	let rows = minRows + Math.round(Math.random() * (maxRows - minRows));
+	let cols = minCols + Math.floor(Math.random() * (maxCols - minCols));
 	let map = [];
 
 	let remainingCoins = Math.ceil((rows * cols - 4) * 0.6);

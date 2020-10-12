@@ -95,3 +95,8 @@ body {
   font-family: monospace;
   font-size: 12px;
 }
+@media screen and (max-width: 599px) {
+  #game div.matrix {
+    transform: scale(0.6, 0.6) translate(-33%, -33%);
+  }
+}

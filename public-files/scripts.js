@@ -9,17 +9,61 @@ function clearElementContent(elm) {
 	while(elm.firstChild) elm.removeChild(elm.firstChild);
 }
 
+class Touches {
+	constructor() {
+		this.list = {};
+	}
+
+	//create update
+	cu(touch) {
+		if(!this.list[touch.identifier]) {
+			this.list[touch.identifier] = {
+				identifier: touch.identifier,
+				history: []
+			};
+		}
+
+		this.list[touch.identifier].history.push({
+			clientX: touch.clientX, clientY: touch.clientY,
+			pageX: touch.pageX, pageY: touch.pageY,
+			screenX: touch.screenX, screenY: touch.screenY
+		});
+
+		//there is probably no need to save all touches history. only first touch, final touch and two previous touches
+		if(this.list[touch.identifier].history.length > 4) {
+			this.list[touch.identifier].history.splice(1, 1);
+		}
+
+		return this.list[touch.identifier];
+	}
+
+	read(touch) {
+		return this.list[touch.identifier];
+	}
+
+	//delete
+	remove(touch) {
+		if(typeof touch === 'object') delete this.list[ touch.identifier ];
+		else delete this.list[ touch ]; //probably gotten an ID instead of a touch object
+	}
+}
+var touches = new Touches();
+
 window.addEventListener('DOMContentLoaded', (event) => {
 	let loginBox = document.querySelector('#loginBox');
 	let mainElm = document.querySelector('#game');
 
 	loginBox.querySelector('button').addEventListener('click', (event) => {
-		let name = loginBox.querySelector('input').value;
+		let name = loginBox.querySelector('input').value.trim();
+		if(name.length < 2) {
+			alert(`Your name must be at least 2 characters long`);
+			return;
+		}
 		let goldRushInstance = new OH('gold_rush', (obj) => {
 			loginBox.style.display = 'none';
 			mainElm.style.display = 'block';
 
-			new goldRush(obj, goldRushInstance.id, {
+			new GoldRush(obj, goldRushInstance.id, {
 				main: mainElm,
 				matrix: mainElm.querySelector('div.matrix'),
 				players: mainElm.querySelector('div.players-info'),
@@ -36,12 +80,13 @@ window.addEventListener('DOMContentLoaded', (event) => {
 	});
 });
 
-class goldRush {
+class GoldRush {
 	constructor(oh, myID, elements) {
 		this.oh = oh;
 		this.myID = myID;
 		this.me = oh.players[myID];
 		this.elements = elements;
+		this.touches = [];
 
 		paintMap(this.oh.map, this.elements.matrix, this.myID);
 		this.printPlayers();
@@ -71,6 +116,11 @@ class goldRush {
 			else if(event.key === 'ArrowLeft') this.movePlayer('left');
 			else if(event.key === 'ArrowRight') this.movePlayer('right');
 		});
+
+		this.elements.matrix.addEventListener('touchstart', event => this.onTouchStart(event));
+		this.elements.matrix.addEventListener('touchmove', event => this.onTouchMove(event));
+		this.elements.matrix.addEventListener('touchcancel', event => this.onTouchCancel(event));
+		this.elements.matrix.addEventListener('touchend', event => this.onTouchEnd(event));
 	}
 
 	printPlayers() {
@@ -111,7 +161,42 @@ class goldRush {
 	removeLogEntry(index) {
 		let span = this.elements.console.querySelector('span.log-'+index);
 		if(span) { //server might be trying to delete logs that existed before we logged in
-			this.elements.console.removeChild(  );
+			this.elements.console.removeChild(span);
+		}
+	}
+
+	onTouchStart(event) {
+		event.preventDefault();
+
+		for(let i=0; i < event.changedTouches.length; i++) {
+			touches.cu(event.changedTouches[i]);
+		}
+	}
+	onTouchMove(event) {
+		this.onTouchStart(event); //both do the same
+	}
+	onTouchCancel(event) {
+		for(let i=0; i < event.changedTouches.length; i++) {
+			touches.remove(event.changedTouches[i]);
+		}
+	}
+	onTouchEnd(event) {
+		for(let i=0; i < event.changedTouches.length; i++) {
+			if(i === 0) { //we handle only a single touch
+				let touch = touches.read(event.changedTouches[i]);
+				let startingPoint = touch.history[0];
+				let endingPoint = touch.history[ touch.history.length - 1 ];
+				let xDelta = endingPoint.pageX - startingPoint.pageX;
+				let yDelta = endingPoint.pageY - startingPoint.pageY;
+
+				if(xDelta > 50) this.movePlayer('right');
+				else if(xDelta < -50) this.movePlayer('left');
+
+				if(yDelta > 50) this.movePlayer('down');
+				else if(yDelta < -50) this.movePlayer('up');
+			}
+
+			touches.remove(event.changedTouches[i]);
 		}
 	}
 
@@ -167,7 +252,7 @@ class goldRush {
 			}
 			catch(err) {
 				console.warn(`failed updating old position. probably a race condition between old and new map`);
-				console.error(err);
+				//console.error(err);
 			}
 		}
 	}
